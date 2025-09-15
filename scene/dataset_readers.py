@@ -862,10 +862,10 @@ def readColmapSceneInfo(path, images, eval, llffhold=8):
         else:
             import json
             js1 = json.load(open(os.path.join(path, 'dataset.json'), 'r'))
-            js2 = json.load(open(os.path.join(path, 'train_common.json'), 'r'))
-            mono_cameras = js2['frame_names']
-            # train_cam_infos= [this_cam for i, this_cam in enumerate(cam_infos) if this_cam.image_name in js1['train_ids']]
-            train_cam_infos= [this_cam for i, this_cam in enumerate(cam_infos) if this_cam.image_name in mono_cameras]
+            # js2 = json.load(open(os.path.join(path, 'train_common.json'), 'r'))
+            # mono_cameras = js2['frame_names']
+            train_cam_infos= [this_cam for i, this_cam in enumerate(cam_infos) if this_cam.image_name in js1['train_ids']]
+            # train_cam_infos= [this_cam for i, this_cam in enumerate(cam_infos) if this_cam.image_name in mono_cameras]
 
             test_cam_infos= [this_cam for i, this_cam in enumerate(cam_infos) if this_cam.image_name in js1['val_ids']]
             val_cam_infos= [this_cam for i, this_cam in enumerate(cam_infos) if this_cam.image_name in js1['val_ids']]

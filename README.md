@@ -87,7 +87,7 @@ Note: The camera poses in [HyperNeRF](https://github.com/google/hypernerf) are r
 <details>
   <summary>Aria dataset processing</summary>
 
-Please refer to the [nerfstudio](https://docs.nerf.studio/quickstart/custom_dataset.html#aria) steps to prepare camera poses and extract fisheye frames.  Then create an "images_orig" folder and copy the raw fisheye images there. And copy the "transforms.json" as "transforms_orig.json".
+Please refer to the [nerfstudio](https://docs.nerf.studio/quickstart/custom_dataset.html#aria) steps to prepare camera poses and extract fisheye frames.(depending on your nerfstudio version, you may need to set --max-frames to be larger than total frames.)  Then create an "images_orig" folder and copy the raw fisheye images there. And copy the "transforms.json" as "transforms_orig.json".
 The folder structure should look like this
 ```
 ├── Aria seq 1

@@ -366,9 +366,7 @@ def readColmapCameras_deblur(cam_extrinsics, cam_intrinsics, images_folder):
     cam_infos = []
     keys_list = list(cam_extrinsics.keys())
     keys_list = sorted(keys_list)
-    all_time = []
-    for idx in range(len(keys_list)):
-        all_time.append(float(cam_extrinsics[keys_list[idx]].name.split('.')[0].split('_')[-1]) )
+
     for idx in range(len(keys_list)):
         key = keys_list[idx]
 
@@ -378,9 +376,8 @@ def readColmapCameras_deblur(cam_extrinsics, cam_intrinsics, images_folder):
         sys.stdout.flush()
 
         extr = cam_extrinsics[key]
-        time_of_this = float(extr.name.split('.')[0].split('_')[-1])
+        time_of_this = float(idx / len(keys_list) )
 
-        # if float(extr.name.split('.')[0].split('_')[-1]) >60000 or float(extr.name.split('.')[0].split('_')[-1]) < 55000 or int(extr.name.split('.')[0].split('_')[-1]) %2 ==0:
         #     continue
         intr = cam_intrinsics[extr.camera_id]
         height = intr.height
@@ -419,10 +416,7 @@ def readColmapCameras_deblur(cam_extrinsics, cam_intrinsics, images_folder):
             height = height//downscale
             FovY = focal2fov(focal_length_y, height)
             FovX = focal2fov(focal_length_x, width)
-        enhance_brightness_flag = False
-        if enhance_brightness_flag:
-            image = ImageEnhance.Brightness(image)
-            image = image.enhance(1.5)
+
         image = torch.from_numpy(np.array(image)).permute(2, 0, 1)
         use_feature = False
         if not use_feature:
@@ -459,7 +453,7 @@ def readColmapCameras_deblur(cam_extrinsics, cam_intrinsics, images_folder):
 
         cam_info = CameraInfo(uid=uid, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
                           image_path=image_path, image_name=image_name, width=width, height=height,
-                          time = float(  time_of_this / max(all_time) ), mask=None, SD_feature=feature_out) # default by monocular settings.
+                          time = time_of_this, mask=None, SD_feature=feature_out) # default by monocular settings.
         cam_infos.append(cam_info)
     sys.stdout.write('\n')
     return cam_infos
@@ -571,7 +565,7 @@ def readColmapCameras_aria(cam_extrinsics, cam_intrinsics, images_folder):
     keys_list = list(cam_extrinsics.keys())
     keys_list = sorted(keys_list)
     wait_flames = 0
-    wait_flames_thresh = 50
+    wait_flames_thresh = 0
     # wait 2 seconds for the brightness to adjust.
     all_frames = 0
     all_frames_thresh = 5000
@@ -741,7 +735,7 @@ def readColmapSceneInfo(path, images, eval, llffhold=8):
         pcd = BasicPointCloud(points=xyz, colors=SH2RGB(shs), normals=np.zeros(np.shape(xyz)))
         pcd_max = xyz.max(axis=0) #+ 0.1 * nerf_normalization['radius']
         pcd_min = xyz.min(axis=0) #- 0.1 * nerf_normalization['radius']
-        num_pts = 10000
+        num_pts = 1000
         print(f"Generating random point cloud ({num_pts})...")
 
         # We create random points inside the bounds of the synthetic Blender scenes
@@ -972,6 +966,93 @@ def readColmapSceneInfo(path, images, eval, llffhold=8):
             shs = np.random.random((xyz.shape[0], 3))  # 255.0
             pcd_2 = BasicPointCloud(points=xyz, colors=SH2RGB(shs), normals=np.zeros((len(xyz), 3)))
             pcd_3 = None
+    else:
+        print('Warning: Using naive handler')
+        cam_infos = readColmapCameras_deblur(cam_extrinsics=cam_extrinsics, cam_intrinsics=cam_intrinsics,
+                                                   images_folder=os.path.join(path, reading_dir))
+
+        train_cam_infos= [this_cam for i, this_cam in enumerate(cam_infos) if(i % 8 != 0)]
+        test_cam_infos= [this_cam for i, this_cam in enumerate(cam_infos) if(i % 8 == 0)]
+        val_cam_infos= test_cam_infos
+
+
+        nerf_normalization = getNerfppNorm(train_cam_infos)
+
+        ply_path = os.path.join(path, "sparse/0/points3D.ply")
+        bin_path = os.path.join(path, "sparse/0/points3D.bin")
+        txt_path = os.path.join(path, "sparse/0/points3D.txt")
+
+        using_colmap = True
+        if using_colmap:
+
+            try:
+                xyz, rgb, _ = read_points3D_binary(bin_path)
+            except:
+                xyz, rgb, _ = read_points3D_text(txt_path)
+
+            storePly(ply_path, xyz, rgb)
+
+
+            if os.path.exists(os.path.join(path, "fused.ply")):
+                print('Using dense pc')
+                pc_in_aria = os.path.join(path, "fused.ply")
+                import open3d as o3d
+                pcd_aria = o3d.io.read_point_cloud(pc_in_aria)
+
+                xyz = np.array(pcd_aria.points)
+                rgb = np.array(pcd_aria.colors)
+            else:
+                print('failed to use dense pc, revert to sparse pc')
+
+            use_sky_pc = False
+            sky_pc = None
+            xyz_copy_ori =xyz.copy()
+            rgb_copy_ori = rgb.copy() /255
+
+            if use_sky_pc:
+                center = -nerf_normalization['translate']  # Center of the scene
+                sphere_radius =  np.sqrt(((xyz_copy_ori - center) ** 2).sum(axis=1)).max() * 2
+
+                # Radius of the scene
+                num_points = 50000  # Number of points for the sphere
+                phi = np.random.uniform(0, 2 * np.pi, num_points)  # Azimuthal angle
+                cos_theta = np.random.uniform(-1, 1, num_points)  # Uniform distribution for theta
+                theta = np.arccos(cos_theta)
+                x = sphere_radius * np.sin(theta) * np.cos(phi) + center[0]
+                y = sphere_radius * np.sin(theta) * np.sin(phi) + center[1]
+                z = sphere_radius * np.cos(theta) + center[2]
+
+                # Combine into a point cloud
+                sky_pc = np.vstack((x, y, z)).T
+
+            if sky_pc is not None:
+                xyz = np.vstack((xyz_copy_ori, sky_pc))
+
+            shs_base = rgb_copy_ori
+
+            if not use_sky_pc:
+                shs = shs_base
+            else:
+                shs = np.random.random((xyz.shape[0], 3))  # / 255.0
+                shs[:(len(shs_base))] = shs_base
+
+            # shs = np.random.random((xyz.shape[0], 3))  # / 255.0
+
+            pcd = BasicPointCloud(points=xyz, colors=(shs), normals=np.zeros(np.shape(xyz)))
+            pcd_max = xyz_copy_ori.max(axis=0) + 0.1 * nerf_normalization['radius']
+            pcd_min = xyz_copy_ori.min(axis=0) - 0.1 * nerf_normalization['radius']
+            num_pts = 10000
+            print(f"Generating random point cloud ({num_pts})...")
+
+            x = np.random.random((num_pts, 1)) * (pcd_max[0] - pcd_min[0]) + pcd_min[0]
+            y = np.random.random((num_pts, 1)) * (pcd_max[1] - pcd_min[1]) + pcd_min[1]
+            z = np.random.random((num_pts, 1)) * (pcd_max[2] - pcd_min[2]) + pcd_min[2]
+            xyz_random = np.hstack([x, y, z])
+            xyz = xyz_random
+            shs = np.random.random((xyz.shape[0], 3))  # 255.0
+            pcd_2 = BasicPointCloud(points=xyz, colors=SH2RGB(shs), normals=np.zeros((len(xyz), 3)))
+            pcd_3 = None
+
 
 
     scene_info = SceneInfo(point_cloud=pcd_2,

@@ -773,62 +773,77 @@ def scene_reconstruction_degauss(dataset, optimization_params, hypernetwork_conf
                 fig, ax = plt.subplots(3, 5, figsize=(30, 18))
                 plt.rcParams['font.family'] = "sans-serif"
 
-                ax[0, 0].imshow(gt_image_tensor.clone().detach().cpu()[0].permute(1, 2, 0).numpy())
+                ax[0, 0].imshow(np.clip(gt_image_tensor.clone().detach().cpu()[0].permute(1, 2, 0).numpy(), 0, 1))
                 ax[0, 0].set_title("Ground Truth")
-                ax[1, 0].imshow(image_tensor.clone().detach().cpu()[0].permute(1, 2, 0).numpy())
+
+                ax[1, 0].imshow(np.clip(image_tensor.clone().detach().cpu()[0].permute(1, 2, 0).numpy(), 0, 1))
                 ax[1, 0].set_title("Full Predicted")
-                # render_pkg_temp = render_egopers(viewpoint_cam, foreground_gaussians, pipeline_config, background, stage=stage,
-                #                        cam_type=scene.dataset_type)
-                ax[0, 1].imshow(image_tensor_first[0].clone().detach().cpu().permute(1, 2, 0).numpy())
+
+                ax[0, 1].imshow(np.clip(image_tensor_first[0].clone().detach().cpu().permute(1, 2, 0).numpy(), 0, 1))
                 ax[0, 1].set_title("Dynamic Raw")
 
-                ax[1, 1].imshow(image_dy[0].clone().detach().cpu().permute(1, 2, 0).numpy())
+                ax[1, 1].imshow(np.clip(image_dy[0].clone().detach().cpu().permute(1, 2, 0).numpy(), 0, 1))
                 ax[1, 1].set_title("Dynamic Final")
 
-                ax[0, 2].imshow(image_second_to_show[0].permute(1, 2, 0).numpy())
+                ax[0, 2].imshow(np.clip(image_second_to_show[0].permute(1, 2, 0).numpy(), 0, 1))
                 ax[0, 2].set_title("Static Raw")
-                ax[1, 2].imshow(image_sta[0].clone().detach().cpu().permute(1, 2, 0).numpy())
+
+                ax[1, 2].imshow(np.clip(image_sta[0].clone().detach().cpu().permute(1, 2, 0).numpy(), 0, 1))
                 ax[1, 2].set_title("Static Final")
-                pos = ax[0, 3].imshow(
-                    (motion_masks[0, 2:3, :, :] * pixel_valid_mask[0]).clone().detach().cpu().permute(1, 2, 0).numpy(),
+
+                ax[0, 3].imshow(
+                    np.clip(
+                        (motion_masks[0, 2:3] * pixel_valid_mask[0]).clone().detach().cpu().permute(1, 2, 0).numpy(), 0,
+                        1),
                     cmap='jet', vmin=0, vmax=1)
                 ax[0, 3].set_title("Dynamic Prob")
 
-                ax[1, 3].imshow(((motion_masks[0, 0:1, :,
-                                  :] * pixel_valid_mask[0]).clone().detach().cpu().permute(1, 2, 0).numpy()),
-                                cmap='jet',
-                                vmin=0, vmax=1)
+                ax[1, 3].imshow(
+                    np.clip(
+                        (motion_masks[0, 0:1] * pixel_valid_mask[0]).clone().detach().cpu().permute(1, 2, 0).numpy(), 0,
+                        1),
+                    cmap='jet', vmin=0, vmax=1)
                 ax[1, 3].set_title("Brightness Control")
-                ax[0, 4].imshow(image_tensor_second[0].clone().detach().cpu().permute(1, 2, 0).numpy())
+
+                ax[0, 4].imshow(np.clip(image_tensor_second[0].clone().detach().cpu().permute(1, 2, 0).numpy(), 0, 1))
                 ax[0, 4].set_title("Static Raw with Brightness Control")
+
                 ax[1, 4].imshow(
-                    ((torch.abs(gt_image_tensor - image_tensor_second).sum(axis=1))[0].clone().detach().cpu().numpy()),
-                    cmap='jet',
-                    vmin=0, vmax=1)
+                    np.clip(
+                        torch.abs(gt_image_tensor - image_tensor_second).sum(axis=1)[0].clone().detach().cpu().numpy(),
+                        0, 1),
+                    cmap='jet', vmin=0, vmax=1)
                 ax[1, 4].set_title("Static Raw - GT Error")
-                ax[2, 0].imshow(normalize_depth((depth_images_dy_tensor * mask_comp_first[0,
-                                                                          :1] + depth_images_tensor * mask_comp_second[
-                                                                                                      0,
-                                                                                                      :1])[
-                                                    0].clone().detach().cpu().permute(1, 2, 0).numpy()), cmap='jet',
-                                vmin=0, vmax=1)
+
+                ax[2, 0].imshow(
+                    np.clip(normalize_depth((depth_images_dy_tensor * mask_comp_first[0, :1] +
+                                             depth_images_tensor * mask_comp_second[0, :1])[
+                                                0].clone().detach().cpu().permute(1, 2, 0).numpy()), 0, 1),
+                    cmap='jet', vmin=0, vmax=1)
                 ax[2, 0].set_title("Depth Image Pred")
+
                 ax[2, 1].imshow(
-                    normalize_depth((depth_images_dy_tensor)[0].clone().detach().cpu().permute(1, 2, 0).numpy()),
+                    np.clip(normalize_depth(depth_images_dy_tensor[0].clone().detach().cpu().permute(1, 2, 0).numpy()),
+                            0, 1),
                     cmap='jet', vmin=0, vmax=1)
                 ax[2, 1].set_title("Depth Image Pred dynamic")
+
                 ax[2, 2].imshow(
-                    normalize_depth((depth_images_tensor)[0].clone().detach().cpu().permute(1, 2, 0).numpy()),
-                    cmap='jet',
-                    vmin=0, vmax=1)
+                    np.clip(normalize_depth(depth_images_tensor[0].clone().detach().cpu().permute(1, 2, 0).numpy()), 0,
+                            1),
+                    cmap='jet', vmin=0, vmax=1)
                 ax[2, 2].set_title("Depth Image Pred static")
-                ax[2, 3].imshow(((motion_masks[0, 1:2, :,
-                                  :] * pixel_valid_mask[0]).clone().detach().cpu().permute(1, 2, 0).numpy()),
-                                cmap='jet',
-                                vmin=0, vmax=1)
+
+                ax[2, 3].imshow(
+                    np.clip(
+                        (motion_masks[0, 1:2] * pixel_valid_mask[0]).clone().detach().cpu().permute(1, 2, 0).numpy(), 0,
+                        1),
+                    cmap='jet', vmin=0, vmax=1)
                 ax[2, 3].set_title("Static Raw Prob")
+
                 ax[2, 4].imshow(
-                    ((mask_comp_first[0] * pixel_valid_mask[0])).clone().detach().cpu().permute(1, 2, 0).numpy(),
+                    np.clip((mask_comp_first[0] * pixel_valid_mask[0]).clone().detach().cpu().permute(1, 2, 0).numpy(),
+                            0, 1),
                     cmap='jet', vmin=0, vmax=1)
                 ax[2, 4].set_title("Full Probabilistic Mask")
 
@@ -1179,42 +1194,47 @@ def scene_reconstruction_degauss(dataset, optimization_params, hypernetwork_conf
                     fig, ax = plt.subplots(2, 5, figsize=(30, 12))
                     plt.rcParams['font.family'] = "sans-serif"
 
-                    ax[0, 0].imshow(gt_image_tensor.clone().detach().cpu()[0].permute(1, 2, 0).numpy())
+                    ax[0, 0].imshow(np.clip(gt_image_tensor.clone().detach().cpu()[0].permute(1, 2, 0).numpy(), 0, 1))
                     ax[0, 0].set_title("Ground Truth")
-                    ax[1, 0].imshow(image_tensor.clone().detach().cpu()[0].permute(1, 2, 0).numpy())
+
+                    ax[1, 0].imshow(np.clip(image_tensor.clone().detach().cpu()[0].permute(1, 2, 0).numpy(), 0, 1))
                     ax[1, 0].set_title("Full Predicted")
-                    # render_pkg_temp = render_egopers(viewpoint_cam, foreground_gaussians, pipeline_config, background, stage=stage,
-                    #                        cam_type=scene.dataset_type)
-                    ax[0, 1].imshow(image_tensor_first[0].clone().detach().cpu().permute(1, 2, 0).numpy())
+
+                    ax[0, 1].imshow(
+                        np.clip(image_tensor_first[0].clone().detach().cpu().permute(1, 2, 0).numpy(), 0, 1))
                     ax[0, 1].set_title("Dynamic Raw")
 
-                    ax[1, 1].imshow(image_dy[0].clone().detach().cpu().permute(1, 2, 0).numpy())
+                    ax[1, 1].imshow(np.clip(image_dy[0].clone().detach().cpu().permute(1, 2, 0).numpy(), 0, 1))
                     ax[1, 1].set_title("Dynamic Final")
 
-                    # render_pkg_temp = render(viewpoint_cam, background_gaussians, pipeline_config, background, stage=stage,
-                    #                        cam_type=scene.dataset_type)
-                    ax[0, 2].imshow(image_second_to_show[0].permute(1, 2, 0).numpy())
+                    ax[0, 2].imshow(np.clip(image_second_to_show[0].permute(1, 2, 0).numpy(), 0, 1))
                     ax[0, 2].set_title("Static Raw")
-                    ax[1, 2].imshow(image_sta[0].clone().detach().cpu().permute(1, 2, 0).numpy())
+
+                    ax[1, 2].imshow(np.clip(image_sta[0].clone().detach().cpu().permute(1, 2, 0).numpy(), 0, 1))
                     ax[1, 2].set_title("Static Final")
-                    # ax[0, 1].imshow(np.rot90(depth_array, k=1, axes=(1, 0)), cmap='jet', vmin=0, vmax=10)
 
                     pos = ax[0, 3].imshow(
-                        (motion_masks[0, 2:3, :, :] * pixel_valid_mask[0]).clone().detach().cpu().permute(1, 2,
-                                                                                                          0).numpy(),
+                        np.clip((motion_masks[0, 2:3] * pixel_valid_mask[0]).clone().detach().cpu().permute(1, 2,
+                                                                                                            0).numpy(),
+                                0, 1),
                         cmap='jet', vmin=0, vmax=1)
                     ax[0, 3].set_title("Dynamic Prob")
-                    # ax[1,3].imshow((motion_masks[0, 2:3, :, :].clone().detach().cpu().permute(1, 2, 0).numpy()>vis_thresh), cmap='jet', vmin=0, vmax=1)
-                    # ax[1,3].set_title("Valid Mask")
-                    ax[1, 3].imshow(((motion_masks[0, 0:1, :,
-                                      :] * pixel_valid_mask[0]).clone().detach().cpu().permute(1, 2, 0).numpy()),
-                                    cmap='jet',
-                                    vmin=0, vmax=1)
+
+                    ax[1, 3].imshow(
+                        np.clip((motion_masks[0, 0:1] * pixel_valid_mask[0]).clone().detach().cpu().permute(1, 2,
+                                                                                                            0).numpy(),
+                                0, 1),
+                        cmap='jet', vmin=0, vmax=1)
                     ax[1, 3].set_title("Brightness Control")
-                    ax[0, 4].imshow(image_tensor_second[0].clone().detach().cpu().permute(1, 2, 0).numpy())
+
+                    ax[0, 4].imshow(
+                        np.clip(image_tensor_second[0].clone().detach().cpu().permute(1, 2, 0).numpy(), 0, 1))
                     ax[0, 4].set_title("Brightness Controlled Static")
+
                     ax[1, 4].imshow(
-                        ((mask_comp_first[0] * pixel_valid_mask[0])).clone().detach().cpu().permute(1, 2, 0).numpy(),
+                        np.clip(
+                            (mask_comp_first[0] * pixel_valid_mask[0]).clone().detach().cpu().permute(1, 2, 0).numpy(),
+                            0, 1),
                         cmap='jet', vmin=0, vmax=1)
                     ax[1, 4].set_title("Full Probabilistic Mask")
 

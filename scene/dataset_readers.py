@@ -93,7 +93,7 @@ def getNerfppNorm(cam_info):
 def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
     cam_infos = []
     keys_list = list(cam_extrinsics.keys())
-    keys_list = sorted(keys_list)
+    keys_list = sorted(keys_list, key=lambda k: cam_extrinsics[k].name)
 
     import json
 
@@ -225,7 +225,7 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
 def readColmapCameras_onthego_dist(cam_extrinsics, cam_intrinsics, images_folder):
     cam_infos = []
     keys_list = list(cam_extrinsics.keys())
-    keys_list = sorted(keys_list)
+    keys_list = sorted(keys_list, key=lambda k: cam_extrinsics[k].name)
 
     import json
 
@@ -365,7 +365,7 @@ def readColmapCameras_onthego_dist(cam_extrinsics, cam_intrinsics, images_folder
 def readColmapCameras_deblur(cam_extrinsics, cam_intrinsics, images_folder):
     cam_infos = []
     keys_list = list(cam_extrinsics.keys())
-    keys_list = sorted(keys_list)
+    keys_list = sorted(keys_list, key=lambda k: cam_extrinsics[k].name)
 
     for idx in range(len(keys_list)):
         key = keys_list[idx]
@@ -405,6 +405,13 @@ def readColmapCameras_deblur(cam_extrinsics, cam_intrinsics, images_folder):
             assert False, "Colmap camera model not handled: only undistorted datasets (PINHOLE or SIMPLE_PINHOLE cameras) supported!"
 
         image_path = os.path.join(images_folder, os.path.basename(extr.name))
+        if not os.path.exists(image_path):
+            _base_name = os.path.splitext(os.path.basename(extr.name))[0]
+            for ext in ['.png', '.PNG', '.jpg', '.JPG', '.jpeg', '.JPEG']:
+                _alt_path = os.path.join(images_folder, _base_name + ext)
+                if os.path.exists(_alt_path):
+                    image_path = _alt_path
+                    break
         image_name = os.path.basename(image_path).split(".")[0]
 
         image = Image.open(image_path)
@@ -460,7 +467,7 @@ def readColmapCameras_deblur(cam_extrinsics, cam_intrinsics, images_folder):
 def readColmapCameras_hypernerf(cam_extrinsics, cam_intrinsics, images_folder):
     cam_infos = []
     keys_list = list(cam_extrinsics.keys())
-    keys_list = sorted(keys_list)
+    keys_list = sorted(keys_list, key=lambda k: cam_extrinsics[k].name)
     all_time = []
     for idx in range(len(keys_list)):
         all_time.append(float(cam_extrinsics[keys_list[idx]].name.split('.')[0].split('_')[-1]))
@@ -563,7 +570,7 @@ def storePly(path, xyz, rgb):
 def readColmapCameras_aria(cam_extrinsics, cam_intrinsics, images_folder):
     cam_infos = []
     keys_list = list(cam_extrinsics.keys())
-    keys_list = sorted(keys_list)
+    keys_list = sorted(keys_list, key=lambda k: cam_extrinsics[k].name)
     wait_flames = 0
     wait_flames_thresh = 0
     # wait 2 seconds for the brightness to adjust.
@@ -1065,6 +1072,15 @@ def readColmapSceneInfo(path, images, eval, llffhold=8):
                            point_cloud_second=pcd,
                            point_cloud_third=pcd_3,
                            val_cameras=val_cam_infos)
+    
+    print("\n" + "="*30)
+    print(" [Dataset Split Summary]")
+    print(f" - Total Cameras: {len(scene_info.train_cameras) + len(scene_info.test_cameras)}")
+    print(f" - Train Cameras: {len(scene_info.train_cameras)}")
+    print(f" - Test Cameras : {len(scene_info.test_cameras)}")
+    
+    test_names = [cam.image_name for cam in scene_info.test_cameras]
+    print(f"[Selected Test Camera Names]: {test_names}")
 
     return scene_info
 def generateCamerasFromTransforms(path, template_transformsfile, extension, maxtime):

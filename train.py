@@ -13,6 +13,7 @@ Dynamic Gaussian Splatting training script (release version).
 This refactor only adds concise documentation and removes duplicate imports
 while keeping the original variable names and overall structure intact.
 """
+import math
 import torch.nn as nn
 from PIL import Image
 
@@ -197,6 +198,11 @@ def scene_reconstruction_degauss(dataset, optimization_params, hypernetwork_conf
         if stage in checkpoint:
             (model_params, first_iter) = torch.load(checkpoint)
             foreground_gaussians.restore(model_params, optimization_params)
+    
+    if stage == "coarse":
+        batch_size = 1
+    else:  # fine stage
+        batch_size = 2
 
     # ---- Background Colors (near-black to avoid numerical issues) ----
     bg_color =  [1e-7, 1e-7, 1e-7]
@@ -240,7 +246,7 @@ def scene_reconstruction_degauss(dataset, optimization_params, hypernetwork_conf
         viewpoint_stack = [i for i in train_cams]
         viewpoint_stack_index_save = copy.deepcopy(viewpoint_stack_index)
 
-    batch_size = optimization_params.batch_size
+    # batch_size = optimization_params.batch_size
     print("data loading done")
 
     # ---- DataLoader Setup (optional) ----
@@ -1273,6 +1279,18 @@ def training(dataset, hypernetwork_config, optimization_params, pipeline_config,
                     os.path.join(optimization_params.saving_folder, expname, 'cfg_args'))
 
     scene = Scene2gs_mixed(dataset, foreground_gaussians, load_coarse=None, gaussians_second=background_gaussians)
+    
+    ###
+    import math
+    total_frames = len(scene.getTrainCameras()) + len(scene.getTestCameras())
+    new_time_res = math.ceil(total_frames / 2)
+    hypernetwork_config.kplanes_config['resolution'][3] = new_time_res
+    from scene.deformation import deform_network
+    foreground_gaussians._deformation = deform_network(hypernetwork_config).to("cuda")
+    print(f"[Dynamic Config] Total frames found: {total_frames}")
+    print(f"[Dynamic Config] Network updated with time resolution: {new_time_res}")
+    ###
+    
     foreground_gaussians.max_radii2D = torch.zeros_like(foreground_gaussians.max_radii2D).cuda()
     timer.start()
     scene_reconstruction_degauss(dataset, optimization_params, hypernetwork_config, pipeline_config, testing_iterations,
@@ -1348,9 +1366,9 @@ if __name__ == "__main__":
     parser.add_argument('--debug_from', type=int, default=-1)
     parser.add_argument('--detect_anomaly', action='store_true', default=False)
     parser.add_argument("--test_iterations", nargs="+", type=int, default=[3000])
-    parser.add_argument("--save_iterations", nargs="+", type=int, default=[19999, 39999, 79999, 99999, 119999])
+    parser.add_argument("--save_iterations", nargs="+", type=int, default=[10000])
     parser.add_argument("--quiet", action="store_true")
-    parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
+    parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[10000])
     parser.add_argument("--start_checkpoint", type=str, default=None)
     parser.add_argument("--expname", type=str, default="")
     parser.add_argument("--configs", type=str, default="")
